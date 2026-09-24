@@ -1,0 +1,1678 @@
+// ============================================================================
+// AgriLink AI - Prisma Schema
+// National agricultural digital ecosystem for Rwanda.
+// Designed so the full administrative hierarchy (Province -> District ->
+// Sector -> Cell -> Village) and full crop catalogue can exist in the
+// database from day one, while an ACTIVE-AREA / ACTIVE-CROP flag controls
+// what is actually operational during phased rollout. Nothing here is
+// hard-coded to specific districts/crops -- see AdminArea.isActive / Crop.isActive.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// ENUMS
+// ----------------------------------------------------------------------------
+
+enum GeoLevel {
+  COUNTRY
+  PROVINCE
+  DISTRICT
+  SECTOR
+  CELL
+  VILLAGE
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  HELPER_ADMIN
+  CEO
+  DAF
+  CTO
+  AGRICULTURE_MANAGER
+  FINANCE_MANAGER
+  PROVINCE_LEADER
+  DISTRICT_LEADER
+  SECTOR_LEADER
+  CELL_LEADER
+  VILLAGE_LEADER
+  FARMER
+  COOPERATIVE
+  BUYER
+  SUPPLIER
+  TRANSPORTER
+  AGRICULTURAL_EXPERT
+  MARKETING_PARTNER
+  B2B_CLIENT
+  CUSTOMER_SUPPORT
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+  REJECTED
+}
+
+
+enum ApprovalRequestType {
+  NEW_SUPER_ADMIN
+  NEW_HELPER_ADMIN
+  USER_REGISTRATION
+}
+
+enum ApprovalDecisionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EmailTokenPurpose {
+  VERIFY_EMAIL
+  PASSWORD_RESET
+}
+
+enum CropCategory {
+  CEREAL
+  TUBER
+  LEGUME
+  VEGETABLE
+  FRUIT
+  CASH_CROP
+  INDUSTRIAL
+  LIVESTOCK_FEED
+  OTHER
+}
+
+enum FarmCropStatus {
+  PLANNED
+  PLANTED
+  GROWING
+  HARVESTED
+  FAILED
+}
+
+
+enum AiEngineType {
+  PLANT_DOCTOR
+  AGRONOMIST
+  FARM_PLANNER
+  FINANCIAL_ADVISOR
+}
+
+enum WeatherAlertType {
+  RAIN
+  FLOOD
+  DROUGHT
+  WIND
+  FROST
+  LIGHTNING
+}
+
+enum WeatherAlertSeverity {
+  ADVISORY
+  WATCH
+  WARNING
+}
+
+
+enum FarmZoneType {
+  BOUNDARY
+  SOIL
+  IRRIGATION
+  CROP_HEALTH
+}
+
+enum IotDeviceStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PumpState {
+  ON
+  OFF
+}
+
+
+enum SensorAlertType {
+  LOW_MOISTURE
+  HIGH_MOISTURE
+  LOW_NITROGEN
+  LOW_PHOSPHORUS
+  LOW_POTASSIUM
+  PH_LOW
+  PH_HIGH
+  DEVICE_OFFLINE
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  RESERVED
+  SOLD
+  EXPIRED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  AWAITING_TRANSPORT
+  IN_TRANSPORT
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  DISPUTED
+  REFUNDED
+}
+
+enum InputCategory {
+  SEED
+  FERTILIZER
+  PESTICIDE
+  TOOL
+  IRRIGATION_EQUIPMENT
+  MACHINERY
+  ANIMAL_FEED
+  VETERINARY_PRODUCT
+}
+
+enum InputOrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum VehicleType {
+  MOTORCYCLE
+  TRICYCLE
+  PICKUP
+  TRUCK_SMALL
+  TRUCK_MEDIUM
+  TRUCK_LARGE
+  REFRIGERATED_TRUCK
+  OTHER
+}
+
+enum TransportRequestStatus {
+  REQUESTED
+  QUOTED
+  ACCEPTED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+  DISPUTED
+}
+
+enum ServiceType {
+  MARKETPLACE
+  INPUT_SALE
+  TRANSPORT
+  SUBSCRIPTION
+  ADVERTISING
+  B2B
+  AI_SERVICE
+  TRAINING
+  FINANCIAL_REFERRAL
+}
+
+enum CommissionPayer {
+  SELLER
+  BUYER
+  SPLIT
+  SUPPLIER
+  TRANSPORTER
+  ADVERTISER
+  SUBSCRIBER
+}
+
+enum CommissionTxStatus {
+  PENDING
+  ACCRUED
+  SETTLED
+  REVERSED
+  WAIVED
+}
+
+enum PaymentPurpose {
+  MARKETPLACE_ORDER
+  INPUT_ORDER
+  TRANSPORT
+  SUBSCRIPTION
+  ADVERTISING
+  B2B_SERVICE
+  AI_SERVICE
+  TRAINING
+  OTHER
+}
+
+enum PaymentTxStatus {
+  PENDING
+  PROCESSING
+  SUCCESSFUL
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  REVERSED
+  UNMATCHED
+}
+
+enum PaymentMethodType {
+  MOBILE_MONEY
+  BANK_CARD
+  BANK_TRANSFER
+  CASH_ON_DELIVERY
+  WALLET
+}
+
+enum SubscriptionTier {
+  FREE
+  BASIC
+  PREMIUM
+  PROFESSIONAL
+  BUSINESS
+  ENTERPRISE
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum UserSubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  EXPIRED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum AdCampaignType {
+  BANNER
+  SPONSORED_PRODUCT
+  FEATURED_LISTING
+  SEARCH_PLACEMENT
+  AGRI_CAMPAIGN
+}
+
+enum AdCampaignStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  PAUSED
+  COMPLETED
+  REJECTED
+}
+
+enum ChannelType {
+  HQ
+  PROVINCE
+  DISTRICT
+  SECTOR
+  CELL
+  VILLAGE
+  DIRECT
+  GROUP
+  DEPARTMENT
+}
+
+enum AnnouncementPriority {
+  NORMAL
+  HIGH
+  EMERGENCY
+}
+
+enum ExpenseCategory {
+  STAFF
+  MARKETING
+  HOSTING
+  AI_API
+  SMS
+  COMMUNICATIONS
+  TRANSPORT_OPERATIONS
+  SUPPORT
+  ADMINISTRATION
+  OTHER
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+// ----------------------------------------------------------------------------
+// GEOGRAPHY - Rwanda administrative hierarchy
+// Single self-referential table keeps the tree generic (country -> province
+// -> district -> sector -> cell -> village) so the FULL national structure
+// (4 provinces + Kigali, 30 districts, 416 sectors, 2148 cells, 14837
+// villages) can be loaded, while `isActive` (+ activatedAt/activatedBy)
+// drives which areas are actually operational during phased rollout.
+// ----------------------------------------------------------------------------
+
+model AdminArea {
+  id           String   @id @default(uuid())
+  level        GeoLevel
+  code         String   @unique // e.g. RW, RW-01, RW-01-01 ... stable admin code
+  name         String
+  nameLocal    String? // Kinyarwanda name if different
+  parentId     String?
+  parent       AdminArea?  @relation("AreaHierarchy", fields: [parentId], references: [id])
+  children     AdminArea[] @relation("AreaHierarchy")
+
+  isActive     Boolean  @default(false) // ACTIVE DEPLOYMENT AREAS toggle
+  activatedAt  DateTime?
+  activatedBy  String?
+  deactivatedAt DateTime?
+
+  latitude     Float?
+  longitude    Float?
+  population   Int?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  roleAssignments   RoleAssignment[]
+  farms             Farm[]
+  listings          MarketplaceListing[]
+  channels          Channel[]
+  expenses          Expense[]
+  adTargets         AdCampaignTarget[]
+  transportPickups  TransportRequest[] @relation("PickupArea")
+  transportDestinations TransportRequest[] @relation("DestinationArea")
+  approvalRequests  ApprovalRequest[]
+  weatherAlerts     WeatherAlert[]
+  soilReferences    SoilReference[]
+
+  @@index([level])
+  @@index([parentId])
+  @@index([isActive])
+}
+
+// ----------------------------------------------------------------------------
+// USERS, RBAC, ORGANIZATION
+// ----------------------------------------------------------------------------
+
+model User {
+  id               String     @id @default(uuid())
+  email            String?    @unique
+  phone            String?    @unique // optional: Google sign-up may only supply email
+  passwordHash     String?    // null for accounts created via Google Sign-In only
+  firstName        String
+  lastName         String
+  preferredLanguage String    @default("en") // en | fr | rw
+  status           UserStatus @default(PENDING)
+  nationalId       String?    @unique
+  avatarUrl        String?
+  lastLoginAt      DateTime?
+  refreshTokenHash String?
+
+  googleId         String?    @unique
+  emailVerifiedAt  DateTime?
+
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  roleAssignments      RoleAssignment[]
+  emailVerificationTokens EmailVerificationToken[]
+  approvalRequestsMade    ApprovalRequest[]      @relation("ApprovalRequester")
+  approvalRequestsReceived ApprovalRequest[]     @relation("ApprovalTarget")
+  approvalsDecided        ApprovalRequest[]      @relation("ApprovalDecider")
+  approvalsCoSigned       ApprovalRequest[]      @relation("ApprovalCoSigner")
+  farms                Farm[]                 @relation("FarmOwner")
+  listings             MarketplaceListing[]   @relation("Seller")
+  ordersAsBuyer        Order[]                @relation("Buyer")
+  ordersAsSeller       Order[]                @relation("SellerOrders")
+  inputOrders          InputOrder[]           @relation("InputBuyer")
+  suppliedProducts     InputProduct[]         @relation("SupplierProducts")
+  vehicles             Vehicle[]
+  transportRequestsMade TransportRequest[]    @relation("Requester")
+  transportQuotesGiven TransportQuote[]       @relation("TransporterQuotes")
+  paymentMethods       PaymentMethod[]
+  paymentTransactions  PaymentTransaction[]
+  subscriptions        UserSubscription[]
+  adCampaigns          AdCampaign[]
+  channelMemberships   ChannelMember[]
+  messagesSent         Message[]
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+  cooperativeMemberships CooperativeMember[]
+  cooperativesLed      Cooperative[]          @relation("CooperativeLeader")
+  approvedCommissionRules CommissionRule[]    @relation("RuleApprover")
+  createdCommissionRules CommissionRule[]     @relation("RuleCreator")
+  expensesCreated      Expense[]              @relation("ExpenseCreator")
+  expensesApproved     Expense[]              @relation("ExpenseApprover")
+  departmentsHeaded    Department[]           @relation("DepartmentHead")
+  aiDiagnoses          AiDiagnosis[]
+  weatherAlertsIssued  WeatherAlert[]
+  farmExpensesRecorded FarmExpense[]          @relation("FarmExpenseCreator")
+  farmIncomesRecorded  FarmIncome[]           @relation("FarmIncomeCreator")
+  iotDevicesRegistered IotDevice[]            @relation("IotDeviceRegisteredBy")
+  aiRecommendationsCreated AiRecommendation[] @relation("AiRecommendationCreatedBy")
+
+  @@index([status])
+}
+
+// A user can hold more than one role, each scoped to a geographic level
+// (e.g. DISTRICT_LEADER for District X) or unscoped for HQ roles.
+model RoleAssignment {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        UserRole
+  geoAreaId   String? // null for HQ-level / not geographically scoped roles
+  geoArea     AdminArea? @relation(fields: [geoAreaId], references: [id])
+  departmentId String?
+  department  Department? @relation(fields: [departmentId], references: [id])
+  isPrimary   Boolean   @default(false)
+  assignedBy  String?
+  assignedAt  DateTime  @default(now())
+  revokedAt   DateTime?
+
+  @@index([userId])
+  @@index([role])
+  @@index([geoAreaId])
+  @@unique([userId, role, geoAreaId])
+}
+
+// HQ organizational departments (CTO, DAF, Agricultural Operations, Marketplace,
+// Transport & Logistics, AI/Data, Customer Support, Compliance/Risk, Regional Ops...)
+model Department {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  code         String   @unique
+  headUserId   String?
+  head         User?    @relation("DepartmentHead", fields: [headUserId], references: [id])
+  parentId     String?
+  parent       Department?  @relation("DeptHierarchy", fields: [parentId], references: [id])
+  children     Department[] @relation("DeptHierarchy")
+  createdAt    DateTime @default(now())
+
+  roleAssignments RoleAssignment[]
+  channels        Channel[]
+  approvalRequests ApprovalRequest[]
+}
+
+model Cooperative {
+  id           String   @id @default(uuid())
+  name         String
+  registrationNumber String @unique
+  leaderId     String?
+  leader       User?    @relation("CooperativeLeader", fields: [leaderId], references: [id])
+  villageAreaId String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  members      CooperativeMember[]
+}
+
+model CooperativeMember {
+  id            String   @id @default(uuid())
+  cooperativeId String
+  cooperative   Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
+  farmerId      String
+  farmer        User     @relation(fields: [farmerId], references: [id])
+  joinedAt      DateTime @default(now())
+
+  @@unique([cooperativeId, farmerId])
+}
+
+// ----------------------------------------------------------------------------
+// CROPS (pilot activation system)
+// ----------------------------------------------------------------------------
+
+model Crop {
+  id                     String       @id @default(uuid())
+  name                   String
+  localName              String?
+  scientificName         String?
+  category               CropCategory
+  growingPeriodDays      Int?
+  recommendedRegions     Json? // array of AdminArea codes/names
+  soilRequirements       String?
+  rainfallRequirementsMm String?
+  temperatureMinC        Float?
+  temperatureMaxC        Float?
+  plantingPeriod         String?
+  harvestPeriod          String?
+  expectedYieldPerHaKg   Float?
+  inputRequirements      Json? // { seedsKgPerHa, fertilizerKgPerHa, ... }
+  diseaseInfo            Json? // [{name, symptoms, management}]
+  pestInfo               Json? // [{name, symptoms, management}]
+  marketInfo             Json? // { avgPriceRwfPerKg, demandTrend, mainBuyers }
+  productionCostRwfPerHa Float?
+  estimatedRevenueRwfPerHa Float?
+  transportConsiderations String?
+
+  isActive    Boolean   @default(false) // pilot crop activation
+  activatedAt DateTime?
+  activatedBy String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  farmCrops   FarmCrop[]
+  listings    MarketplaceListing[]
+  transportRequests TransportRequest[]
+  aiDiagnoses AiDiagnosis[]
+  soilRequirement CropSoilRequirement?
+  fertilizerRecommendations FertilizerRecommendation[]
+  aiRecommendations AiRecommendation[]
+
+  @@index([isActive])
+}
+
+// ----------------------------------------------------------------------------
+// FARMS AND PRODUCTION
+// ----------------------------------------------------------------------------
+
+model Farm {
+  id           String   @id @default(uuid())
+  ownerId      String
+  owner        User     @relation("FarmOwner", fields: [ownerId], references: [id])
+  name         String
+  areaId       String // village-level AdminArea (or highest available active level)
+  area         AdminArea @relation(fields: [areaId], references: [id])
+  sizeHectares Float?
+  soilType     String?
+  latitude     Float?
+  longitude    Float?
+  isB2B        Boolean  @default(false) // large farm / agribusiness flag
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  farmCrops    FarmCrop[]
+  zones        FarmZone[]
+  expenses     FarmExpense[]
+  incomes      FarmIncome[]
+  aiDiagnoses  AiDiagnosis[]
+  iotDevices   IotDevice[]
+  soilReadings SoilReading[]
+  sensorAlerts SensorAlert[]
+  aiRecommendations AiRecommendation[]
+
+  @@index([ownerId])
+  @@index([areaId])
+}
+
+model FarmCrop {
+  id                String         @id @default(uuid())
+  farmId            String
+  farm              Farm           @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  cropId            String
+  crop              Crop           @relation(fields: [cropId], references: [id])
+  season            String // e.g. "2026A", "2026B"
+  plantedAreaHa     Float?
+  plantingDate      DateTime?
+  expectedHarvestDate DateTime?
+  actualHarvestDate DateTime?
+  expectedYieldKg   Float?
+  actualYieldKg     Float?
+  status            FarmCropStatus @default(PLANNED)
+  notes             String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  listings          MarketplaceListing[]
+
+  @@index([farmId])
+  @@index([cropId])
+  @@index([status])
+}
+
+// GIS: a farm's boundary, or a soil/irrigation/crop-health zone within it.
+// `boundary` is stored as a plain [{lat,lng}, ...] polygon (JSON) rather than
+// a PostGIS geometry column, so it needs no database extension -- sufficient
+// for storing/displaying a farm's shape on a map without spatial queries.
+model FarmZone {
+  id        String       @id @default(uuid())
+  farmId    String
+  farm      Farm         @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  name      String
+  zoneType  FarmZoneType
+  boundary  Json // [{ "lat": -1.5, "lng": 29.6 }, ...]
+  notes     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([farmId])
+}
+
+// ----------------------------------------------------------------------------
+// FARM FINANCE (per-farm budgeting/bookkeeping -- distinct from the
+// platform-wide DAF finance dashboard, which tracks AgriLink's own revenue)
+// ----------------------------------------------------------------------------
+
+model FarmExpense {
+  id          String   @id @default(uuid())
+  farmId      String
+  farm        Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  category    String // e.g. "Seeds", "Fertilizer", "Labor", "Transport"
+  amount      Float
+  note        String?
+  incurredAt  DateTime @default(now())
+  createdById String
+  createdBy   User     @relation("FarmExpenseCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([farmId])
+  @@index([incurredAt])
+}
+
+model FarmIncome {
+  id          String   @id @default(uuid())
+  farmId      String
+  farm        Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  source      String // e.g. "Marketplace sale", "Direct buyer", "Contract farming"
+  amount      Float
+  note        String?
+  receivedAt  DateTime @default(now())
+  createdById String
+  createdBy   User     @relation("FarmIncomeCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([farmId])
+  @@index([receivedAt])
+}
+
+// ----------------------------------------------------------------------------
+// AI ADVISORY (Plant Doctor, Agronomist, Farm Planner, Financial Advisor)
+// ----------------------------------------------------------------------------
+
+// One record per AI advisory interaction -- doubles as the farmer's advice
+// history and as the data an admin "AI monitoring" view would read.
+model AiDiagnosis {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  farmId         String?
+  farm           Farm?        @relation(fields: [farmId], references: [id])
+  cropId         String?
+  crop           Crop?        @relation(fields: [cropId], references: [id])
+  engineType     AiEngineType
+  inputText      String? // symptom description / farmer question
+  inputImageNote String? // client-side filename/description -- this MVP engine reasons over structured symptoms, not raw image bytes; a real CV model plugs in behind the same PlantDoctorEngine interface
+  findings       Json // structured result: candidate matches + scores
+  recommendation String
+  confidence     Float // 0..1 heuristic confidence, not a model probability
+  createdAt      DateTime     @default(now())
+
+  @@index([userId])
+  @@index([farmId])
+  @@index([engineType])
+}
+
+model WeatherAlert {
+  id             String               @id @default(uuid())
+  geoAreaId      String
+  geoArea        AdminArea            @relation(fields: [geoAreaId], references: [id])
+  alertType      WeatherAlertType
+  severity       WeatherAlertSeverity @default(ADVISORY)
+  message        String
+  recommendation String?
+  startsAt       DateTime
+  endsAt         DateTime?
+  createdById    String
+  createdBy      User                 @relation(fields: [createdById], references: [id])
+  createdAt      DateTime             @default(now())
+
+  @@index([geoAreaId])
+  @@index([alertType])
+  @@index([startsAt])
+}
+
+// ----------------------------------------------------------------------------
+// IOT FIELD SENSORS (ESP32 + NPK multi-parameter soil sensor + GSM module +
+// DC irrigation pump). Devices push readings to POST /iot/ingest using a
+// per-device secret checked in the service layer -- not a user JWT, since
+// the hardware can't do an interactive login. Everything else (device
+// registration, reading history, alerts) goes through the normal
+// authenticated API and is surfaced read-only on the farmer's dashboard.
+// ----------------------------------------------------------------------------
+
+model IotDevice {
+  id          String          @id @default(uuid())
+  farmId      String
+  farm        Farm            @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  deviceCode  String          @unique // e.g. "IOT-A1B2C3D4", flashed onto the device / printed on a label
+  apiKeyHash  String // bcrypt hash of the device's secret -- plaintext is returned once at registration and never stored
+  label       String? // farmer-given name, e.g. "North field sensor"
+  status      IotDeviceStatus @default(ACTIVE)
+  pumpMode    String          @default("AUTO") // "AUTO", "ON", "OFF"
+  lastSeenAt  DateTime? // stamped on every accepted ingest -- used to compute online/offline without a cron job
+  createdById String
+  createdBy   User            @relation("IotDeviceRegisteredBy", fields: [createdById], references: [id])
+  createdAt   DateTime        @default(now())
+
+  readings SoilReading[]
+  alerts   SensorAlert[]
+
+  @@index([farmId])
+}
+
+// One row per ESP32 push: NPK / pH / moisture / temperature plus whatever
+// the DC pump's state was at that moment (the ESP32 reports both together).
+model SoilReading {
+  id            String     @id @default(uuid())
+  deviceId      String
+  device        IotDevice  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  farmId        String
+  farm          Farm       @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  moisturePct   Float?
+  temperatureC  Float?
+  ph            Float?
+  nitrogenPpm   Float?
+  phosphorusPpm Float?
+  potassiumPpm  Float?
+  pumpState     PumpState?
+  recordedAt    DateTime   @default(now()) // device's own clock if it sends one, else server receipt time
+  createdAt     DateTime   @default(now())
+  latitude      Float?
+  longitude     Float?
+  aiRecommendations AiRecommendation[]
+
+  @@index([deviceId])
+  @@index([farmId])
+  @@index([recordedAt])
+}
+
+// Auto-generated when an ingested reading breaches a threshold, or when a
+// device goes quiet (checked lazily whenever the dashboard reads alerts, not
+// a cron job) -- stays open until a later reading clears it or a farmer/
+// leader resolves it manually.
+model SensorAlert {
+  id             String               @id @default(uuid())
+  farmId         String
+  farm           Farm                 @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  deviceId       String
+  device         IotDevice            @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  alertType      SensorAlertType
+  severity       WeatherAlertSeverity @default(ADVISORY)
+  message        String
+  recommendation String?
+  resolvedAt     DateTime?
+  createdAt      DateTime             @default(now())
+
+  @@index([farmId])
+  @@index([deviceId])
+  @@index([resolvedAt])
+}
+
+// ----------------------------------------------------------------------------
+// MARKETPLACE
+// ----------------------------------------------------------------------------
+
+model MarketplaceListing {
+  id            String        @id @default(uuid())
+  sellerId      String
+  seller        User          @relation("Seller", fields: [sellerId], references: [id])
+  cropId        String
+  crop          Crop          @relation(fields: [cropId], references: [id])
+  farmCropId    String?
+  farmCrop      FarmCrop?     @relation(fields: [farmCropId], references: [id])
+  areaId        String
+  area          AdminArea     @relation(fields: [areaId], references: [id])
+  title         String
+  description   String?
+  quantity      Float
+  unit          String        @default("kg")
+  pricePerUnit  Float
+  currency      String        @default("RWF")
+  qualityGrade  String?
+  images        Json?
+  status        ListingStatus @default(DRAFT)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  expiresAt     DateTime?
+
+  orders        Order[]
+  adPlacements  AdPlacement[]
+
+  @@index([sellerId])
+  @@index([cropId])
+  @@index([areaId])
+  @@index([status])
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  listingId       String
+  listing         MarketplaceListing @relation(fields: [listingId], references: [id])
+  buyerId         String
+  buyer           User        @relation("Buyer", fields: [buyerId], references: [id])
+  sellerId        String
+  seller          User        @relation("SellerOrders", fields: [sellerId], references: [id])
+  quantity        Float
+  unitPrice       Float
+  totalAmount     Float
+  currency        String      @default("RWF")
+  commissionRuleId String?
+  commissionRule  CommissionRule? @relation(fields: [commissionRuleId], references: [id])
+  commissionAmount Float?
+  sellerReceives  Float?
+  buyerPays       Float?
+  status          OrderStatus @default(PENDING)
+  transportRequestId String?  @unique
+  transportRequest TransportRequest? @relation(fields: [transportRequestId], references: [id])
+  paymentTransactionId String? @unique
+  paymentTransaction PaymentTransaction? @relation(fields: [paymentTransactionId], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  completedAt     DateTime?
+
+  commissionTx    CommissionTransaction[]
+
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
+}
+
+// ----------------------------------------------------------------------------
+// INPUT SUPPLIERS
+// ----------------------------------------------------------------------------
+
+model InputProduct {
+  id            String         @id @default(uuid())
+  supplierId    String
+  supplier      User           @relation("SupplierProducts", fields: [supplierId], references: [id])
+  category      InputCategory
+  name          String
+  description   String?
+  price         Float
+  unit          String         @default("unit")
+  stockQuantity Float          @default(0)
+  relatedCropIds Json? // array of Crop ids this input applies to
+  images        Json?
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  orders        InputOrder[]
+
+  @@index([supplierId])
+  @@index([category])
+}
+
+model InputOrder {
+  id               String            @id @default(uuid())
+  productId        String
+  product          InputProduct      @relation(fields: [productId], references: [id])
+  buyerId          String
+  buyer            User              @relation("InputBuyer", fields: [buyerId], references: [id])
+  quantity         Float
+  totalAmount      Float
+  commissionRuleId String?
+  commissionRule   CommissionRule?   @relation(fields: [commissionRuleId], references: [id])
+  commissionAmount Float?
+  supplierReceives Float?
+  status           InputOrderStatus  @default(PENDING)
+  paymentTransactionId String?       @unique
+  paymentTransaction PaymentTransaction? @relation(fields: [paymentTransactionId], references: [id])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  commissionTx     CommissionTransaction[]
+
+  @@index([buyerId])
+  @@index([productId])
+}
+
+// ----------------------------------------------------------------------------
+// TRANSPORT
+// ----------------------------------------------------------------------------
+
+model Vehicle {
+  id             String      @id @default(uuid())
+  transporterId  String
+  transporter    User        @relation(fields: [transporterId], references: [id])
+  type           VehicleType
+  plateNumber    String      @unique
+  capacityKg     Float
+  hasColdChain   Boolean     @default(false)
+  active         Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+
+  quotes         TransportQuote[]
+
+  @@index([transporterId])
+}
+
+// Configurable fee components per vehicle type. Never hard-coded in app logic.
+model TransportFeeConfig {
+  id                String      @id @default(uuid())
+  vehicleType       VehicleType
+  baseFeeRwf        Float
+  perKmFeeRwf       Float
+  perKgFeeRwf       Float
+  loadingFeeRwf     Float       @default(0)
+  unloadingFeeRwf   Float       @default(0)
+  waitingFeePerHourRwf Float    @default(0)
+  coldChainFeeRwf   Float       @default(0)
+  active            Boolean     @default(true)
+  effectiveFrom     DateTime    @default(now())
+  effectiveTo       DateTime?
+  createdAt         DateTime    @default(now())
+
+  @@index([vehicleType, active])
+}
+
+model TransportRequest {
+  id                  String                 @id @default(uuid())
+  requesterId         String
+  requester           User                   @relation("Requester", fields: [requesterId], references: [id])
+  cropId              String?
+  crop                Crop?                  @relation(fields: [cropId], references: [id])
+  pickupAreaId        String
+  pickupArea          AdminArea              @relation("PickupArea", fields: [pickupAreaId], references: [id])
+  pickupAddress       String?
+  pickupLatitude      Float?
+  pickupLongitude     Float?
+  destinationAreaId   String
+  destinationArea     AdminArea              @relation("DestinationArea", fields: [destinationAreaId], references: [id])
+  destinationAddress  String?
+  destinationLatitude Float?
+  destinationLongitude Float?
+  quantity            Float?
+  weightKg            Float
+  vehicleTypeRequired VehicleType?
+  distanceKm          Float?
+  estimatedTravelMinutes Int?
+  requiresColdChain   Boolean                @default(false)
+  specialHandling     Json?
+  status              TransportRequestStatus @default(REQUESTED)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  quotes              TransportQuote[]
+  order               Order?
+
+  @@index([requesterId])
+  @@index([status])
+}
+
+model TransportQuote {
+  id                 String   @id @default(uuid())
+  requestId          String
+  request            TransportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  transporterId      String
+  transporter        User     @relation("TransporterQuotes", fields: [transporterId], references: [id])
+  vehicleId          String?
+  vehicle            Vehicle? @relation(fields: [vehicleId], references: [id])
+  baseFee            Float
+  distanceFee        Float
+  weightFee          Float
+  vehicleFee         Float    @default(0)
+  loadingFee         Float    @default(0)
+  unloadingFee       Float    @default(0)
+  waitingFee         Float    @default(0)
+  specialHandlingFee Float    @default(0)
+  coldChainFee       Float    @default(0)
+  transportCost      Float // sum of the above
+  commissionRuleId   String?
+  commissionRule     CommissionRule? @relation(fields: [commissionRuleId], references: [id])
+  commissionAmount   Float
+  customerPrice      Float // transportCost + commissionAmount
+  accepted           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  commissionTx       CommissionTransaction[]
+
+  @@index([requestId])
+  @@index([transporterId])
+}
+
+// ----------------------------------------------------------------------------
+// REVENUE ENGINE - configurable commission rules (no hard-coded rates)
+// ----------------------------------------------------------------------------
+
+model CommissionRule {
+  id               String          @id @default(uuid())
+  name             String
+  serviceType      ServiceType
+  percentage       Float?          // e.g. 3.0 = 3%
+  fixedFeeRwf      Float?
+  minimumFeeRwf    Float?
+  maximumFeeRwf    Float?
+  payer            CommissionPayer
+  geographicScope  Json? // null = national; else array of AdminArea ids
+  cropScope        Json? // null = all crops; else array of Crop ids
+  active           Boolean         @default(true)
+  startDate        DateTime        @default(now())
+  endDate          DateTime?
+  createdById      String?
+  createdBy        User?           @relation("RuleCreator", fields: [createdById], references: [id])
+  approvedById     String?
+  approvedBy       User?           @relation("RuleApprover", fields: [approvedById], references: [id])
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  orders           Order[]
+  inputOrders      InputOrder[]
+  transportQuotes  TransportQuote[]
+  commissionTx     CommissionTransaction[]
+
+  @@index([serviceType, active])
+}
+
+model CommissionTransaction {
+  id             String              @id @default(uuid())
+  ruleId         String
+  rule           CommissionRule      @relation(fields: [ruleId], references: [id])
+  orderId        String?
+  order          Order?              @relation(fields: [orderId], references: [id])
+  inputOrderId   String?
+  inputOrder     InputOrder?         @relation(fields: [inputOrderId], references: [id])
+  transportQuoteId String?
+  transportQuote TransportQuote?     @relation(fields: [transportQuoteId], references: [id])
+  grossAmount    Float
+  commissionAmount Float
+  status         CommissionTxStatus  @default(PENDING)
+  settledAt      DateTime?
+  createdAt      DateTime            @default(now())
+
+  @@index([status])
+  @@index([ruleId])
+}
+
+// ----------------------------------------------------------------------------
+// PAYMENT ABSTRACTION LAYER
+// ----------------------------------------------------------------------------
+
+model PaymentProvider {
+  id              String   @id @default(uuid())
+  code            String   @unique // MTN_MOMO | AIRTEL_MONEY | BANK_CARD | BANK_TRANSFER | CASH | MOCK
+  name            String
+  supportedMethods Json // [MOBILE_MONEY, BANK_CARD, ...]
+  config          Json? // non-secret config only; secrets live in env/secret manager
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  methods         PaymentMethod[]
+  transactions    PaymentTransaction[]
+  webhooks        PaymentWebhook[]
+  reconciliations PaymentReconciliation[]
+}
+
+model PaymentMethod {
+  id          String            @id @default(uuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id])
+  providerId  String
+  provider    PaymentProvider   @relation(fields: [providerId], references: [id])
+  type        PaymentMethodType
+  accountRefMasked String // e.g. "+2507xx***123" or "**** 4242"
+  isDefault   Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+
+  transactions PaymentTransaction[]
+
+  @@index([userId])
+}
+
+model PaymentTransaction {
+  id           String          @id @default(uuid())
+  reference    String          @unique
+  providerId   String
+  provider     PaymentProvider @relation(fields: [providerId], references: [id])
+  methodId     String?
+  method       PaymentMethod?  @relation(fields: [methodId], references: [id])
+  userId       String
+  user         User            @relation(fields: [userId], references: [id])
+  purpose      PaymentPurpose
+  sourceId     String? // polymorphic reference (order id, subscription id, etc.)
+  amount       Float
+  currency     String          @default("RWF")
+  status       PaymentTxStatus @default(PENDING)
+  initiatedAt  DateTime        @default(now())
+  completedAt  DateTime?
+  failureReason String?
+
+  attempts     PaymentAttempt[]
+  refunds      PaymentRefund[]
+  reversals    PaymentReversal[]
+  webhooks     PaymentWebhook[]
+  order        Order?
+  inputOrder   InputOrder?
+  subscriptionPayments SubscriptionPayment[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([purpose])
+}
+
+model PaymentAttempt {
+  id              String   @id @default(uuid())
+  transactionId   String
+  transaction     PaymentTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  attemptNumber   Int
+  status          PaymentTxStatus
+  providerResponse Json?
+  createdAt       DateTime @default(now())
+
+  @@index([transactionId])
+}
+
+model PaymentWebhook {
+  id             String   @id @default(uuid())
+  providerId     String
+  provider       PaymentProvider @relation(fields: [providerId], references: [id])
+  eventType      String
+  payload        Json
+  signatureValid Boolean  @default(false)
+  transactionId  String?
+  transaction    PaymentTransaction? @relation(fields: [transactionId], references: [id])
+  processedAt    DateTime?
+  receivedAt     DateTime @default(now())
+
+  @@index([providerId])
+}
+
+model PaymentRefund {
+  id            String   @id @default(uuid())
+  transactionId String
+  transaction   PaymentTransaction @relation(fields: [transactionId], references: [id])
+  amount        Float
+  reason        String?
+  status        PaymentTxStatus @default(PENDING)
+  processedAt   DateTime?
+  createdAt     DateTime @default(now())
+}
+
+model PaymentReversal {
+  id            String   @id @default(uuid())
+  transactionId String
+  transaction   PaymentTransaction @relation(fields: [transactionId], references: [id])
+  amount        Float
+  reason        String?
+  status        PaymentTxStatus @default(PENDING)
+  processedAt   DateTime?
+  createdAt     DateTime @default(now())
+}
+
+model PaymentSettlement {
+  id                 String   @id @default(uuid())
+  recipientId        String // user id (seller/supplier/transporter) receiving payout
+  periodStart        DateTime
+  periodEnd          DateTime
+  grossAmount        Float
+  commissionDeducted Float
+  feesDeducted       Float
+  netAmount          Float
+  status             PaymentTxStatus @default(PENDING)
+  paidAt             DateTime?
+  createdAt          DateTime @default(now())
+
+  @@index([recipientId])
+}
+
+model PaymentReconciliation {
+  id           String   @id @default(uuid())
+  providerId   String
+  provider     PaymentProvider @relation(fields: [providerId], references: [id])
+  date         DateTime
+  systemTotal  Float
+  providerTotal Float
+  discrepancy  Float
+  status       String   @default("OPEN") // OPEN | RESOLVED
+  notes        String?
+  createdAt    DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// SUBSCRIPTIONS (SaaS + B2B)
+// ----------------------------------------------------------------------------
+
+model SubscriptionPlan {
+  id           String           @id @default(uuid())
+  code         String           @unique
+  name         String
+  tier         SubscriptionTier
+  priceRwf     Float
+  billingCycle BillingCycle
+  description  String?
+  active       Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+
+  features     SubscriptionFeature[]
+  userSubscriptions UserSubscription[]
+}
+
+model SubscriptionFeature {
+  id          String   @id @default(uuid())
+  planId      String
+  plan        SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  featureKey  String // e.g. AI_CONSULTATIONS, DISEASE_SCANS, FARM_RECORDS, MARKET_INTELLIGENCE
+  featureName String
+  limitValue  Int? // null = unlimited
+  enabled     Boolean  @default(true)
+
+  @@unique([planId, featureKey])
+}
+
+model UserSubscription {
+  id         String                  @id @default(uuid())
+  userId     String
+  user       User                    @relation(fields: [userId], references: [id])
+  planId     String
+  plan       SubscriptionPlan        @relation(fields: [planId], references: [id])
+  status     UserSubscriptionStatus  @default(TRIAL)
+  startDate  DateTime                @default(now())
+  endDate    DateTime?
+  autoRenew  Boolean                 @default(true)
+  createdAt  DateTime                @default(now())
+
+  payments   SubscriptionPayment[]
+  invoices   SubscriptionInvoice[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model SubscriptionPayment {
+  id                  String   @id @default(uuid())
+  userSubscriptionId  String
+  userSubscription    UserSubscription @relation(fields: [userSubscriptionId], references: [id])
+  transactionId       String?
+  transaction         PaymentTransaction? @relation(fields: [transactionId], references: [id])
+  amount              Float
+  periodStart         DateTime
+  periodEnd           DateTime
+  createdAt           DateTime @default(now())
+}
+
+model SubscriptionInvoice {
+  id                 String        @id @default(uuid())
+  userSubscriptionId String
+  userSubscription   UserSubscription @relation(fields: [userSubscriptionId], references: [id])
+  invoiceNumber      String        @unique
+  amount             Float
+  status             InvoiceStatus @default(ISSUED)
+  issuedAt           DateTime      @default(now())
+  dueAt              DateTime?
+  paidAt             DateTime?
+}
+
+// ----------------------------------------------------------------------------
+// ADVERTISING
+// ----------------------------------------------------------------------------
+
+model AdCampaign {
+  id            String            @id @default(uuid())
+  advertiserId  String
+  advertiser    User              @relation(fields: [advertiserId], references: [id])
+  name          String
+  type          AdCampaignType
+  targetCropIds Json?
+  budgetRwf     Float
+  spentRwf      Float             @default(0)
+  startDate     DateTime
+  endDate       DateTime
+  status        AdCampaignStatus  @default(DRAFT)
+  createdAt     DateTime          @default(now())
+
+  targets       AdCampaignTarget[]
+  placements    AdPlacement[]
+  metrics       AdMetric[]
+}
+
+// Geographic targeting (province/district/etc.) - many-to-many with AdminArea
+model AdCampaignTarget {
+  id          String     @id @default(uuid())
+  campaignId  String
+  campaign    AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  areaId      String
+  area        AdminArea  @relation(fields: [areaId], references: [id])
+
+  @@unique([campaignId, areaId])
+}
+
+model AdPlacement {
+  id            String   @id @default(uuid())
+  campaignId    String
+  campaign      AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  placementType String // BANNER_HOME, SEARCH_TOP, LISTING_FEATURED...
+  listingId     String?
+  listing       MarketplaceListing? @relation(fields: [listingId], references: [id])
+  position      Int      @default(0)
+  active        Boolean  @default(true)
+
+  @@index([campaignId])
+}
+
+model AdMetric {
+  id          String   @id @default(uuid())
+  campaignId  String
+  campaign    AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  date        DateTime
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  leads       Int      @default(0)
+  conversions Int      @default(0)
+  spendRwf    Float    @default(0)
+
+  @@unique([campaignId, date])
+}
+
+// ----------------------------------------------------------------------------
+// COMMUNICATION
+// ----------------------------------------------------------------------------
+
+model Channel {
+  id           String      @id @default(uuid())
+  type         ChannelType
+  areaId       String?
+  area         AdminArea?  @relation(fields: [areaId], references: [id])
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  name         String
+  createdById  String?
+  createdAt    DateTime    @default(now())
+
+  members       ChannelMember[]
+  messages      Message[]
+  announcements Announcement[]
+
+  @@index([type])
+  @@index([areaId])
+}
+
+model ChannelMember {
+  id        String   @id @default(uuid())
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  isAdmin   Boolean  @default(false)
+  joinedAt  DateTime @default(now())
+
+  @@unique([channelId, userId])
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  channelId  String
+  channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     User     @relation(fields: [senderId], references: [id])
+  body       String
+  attachments Json?
+  sentAt     DateTime @default(now())
+
+  @@index([channelId])
+}
+
+model Announcement {
+  id           String               @id @default(uuid())
+  channelId    String
+  channel      Channel              @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  title        String
+  body         String
+  priority     AnnouncementPriority @default(NORMAL)
+  publishedById String
+  publishedAt  DateTime             @default(now())
+  expiresAt    DateTime?
+
+  @@index([channelId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+// ----------------------------------------------------------------------------
+// FINANCE - expenses, audit, DAF dashboard support
+// ----------------------------------------------------------------------------
+
+model Expense {
+  id           String          @id @default(uuid())
+  category     ExpenseCategory
+  description  String
+  amountRwf    Float
+  incurredAt   DateTime        @default(now())
+  areaId       String? // optional cost-center province/district
+  area         AdminArea?      @relation(fields: [areaId], references: [id])
+  status       ExpenseStatus   @default(PENDING)
+  createdById  String
+  createdBy    User            @relation("ExpenseCreator", fields: [createdById], references: [id])
+  approvedById String?
+  approvedBy   User?           @relation("ExpenseApprover", fields: [approvedById], references: [id])
+  createdAt    DateTime        @default(now())
+
+  @@index([category])
+  @@index([status])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model ApiAccessLog {
+  id         String   @id @default(uuid())
+  method     String
+  path       String
+  statusCode Int
+  userId     String?
+  latencyMs  Int
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path])
+}
+
+// ----------------------------------------------------------------------------
+// ADMIN GOVERNANCE - nobody reaches an active account without a recorded
+// approval decision. Creating a new SUPER_ADMIN or HELPER_ADMIN is SUPER_ADMIN
+// -only and requires a SECOND, different Super Admin's sign-off (two-person
+// control on the platform's most powerful role). Ordinary self-registration
+// (farmer/buyer/supplier/...) can be approved by any SUPER_ADMIN or
+// HELPER_ADMIN. See backend/src/admin and backend/src/auth.
+// ----------------------------------------------------------------------------
+
+model ApprovalRequest {
+  id                   String                  @id @default(uuid())
+  type                 ApprovalRequestType
+  targetUserId         String?
+  targetUser           User?                   @relation("ApprovalTarget", fields: [targetUserId], references: [id])
+  proposedRole         UserRole?
+  proposedGeoAreaId    String?
+  proposedGeoArea      AdminArea?              @relation(fields: [proposedGeoAreaId], references: [id])
+  proposedDepartmentId String?
+  proposedDepartment   Department?             @relation(fields: [proposedDepartmentId], references: [id])
+  requestedById        String
+  requestedBy          User                    @relation("ApprovalRequester", fields: [requestedById], references: [id])
+  status               ApprovalDecisionStatus  @default(PENDING)
+  approvedById         String?
+  approvedBy           User?                   @relation("ApprovalDecider", fields: [approvedById], references: [id])
+  
+  coSignedById         String?
+  coSignedBy           User?                   @relation("ApprovalCoSigner", fields: [coSignedById], references: [id])
+  decisionNotes        String?
+  createdAt            DateTime                @default(now())
+  decidedAt            DateTime?
+
+  @@index([status])
+  @@index([type, status])
+  @@index([targetUserId])
+}
+
+model EmailVerificationToken {
+  id        String            @id @default(uuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  purpose   EmailTokenPurpose @default(VERIFY_EMAIL)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime          @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+// ============================================================================
+// Soil intelligence (migration 004)
+// ============================================================================
+
+/// rwanda_soils -- reference soil points (ISRIC SoilGrids cache, RwaSIS/RAB imports)
+model SoilReference {
+  id               String     @id @default(uuid())
+  latitude         Float
+  longitude        Float
+  areaId           String?
+  area             AdminArea? @relation(fields: [areaId], references: [id])
+  depthLabel       String     @default("0-30cm")
+  soilType         String?
+  texture          String?
+  ph               Float?
+  nitrogenGKg      Float?
+  phosphorusMgKg   Float?
+  potassiumMgKg    Float?
+  organicCarbonGKg Float?
+  cecCmolKg        Float?
+  clayPct          Float?
+  sandPct          Float?
+  siltPct          Float?
+  source           String
+  sourceUrl        String?
+  raw              Json?
+  fetchedAt        DateTime   @default(now())
+  createdAt        DateTime   @default(now())
+
+  aiRecommendations AiRecommendation[]
+
+  @@index([latitude, longitude])
+  @@index([areaId])
+}
+
+/// crop_soil_requirements
+model CropSoilRequirement {
+  id               String   @id @default(uuid())
+  cropId           String   @unique
+  crop             Crop     @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  variety          String?
+  phMin            Float
+  phMax            Float
+  phAbsMin         Float?
+  phAbsMax         Float?
+  nitrogenMinPpm   Float?
+  nitrogenMaxPpm   Float?
+  phosphorusMinPpm Float?
+  phosphorusMaxPpm Float?
+  potassiumMinPpm  Float?
+  potassiumMaxPpm  Float?
+  moistureMinPct   Float?
+  moistureMaxPct   Float?
+  waterRequirement String?
+  maturityDays     Int?
+  limeResponsive   Boolean  @default(false)
+  source           String
+  sourceUrl        String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt
+}
+
+/// fertilizer_recommendations
+model FertilizerRecommendation {
+  id            String   @id @default(uuid())
+  cropId        String
+  crop          Crop     @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  code          String
+  name          String
+  dapKgHa       Float?
+  npk171717KgHa Float?
+  ureaKgHa      Float?
+  kclKgHa       Float?
+  totalNKgHa    Float?
+  nitrogenLevel String?
+  timing        String?
+  source        String
+  sourceUrl     String?
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  @@unique([cropId, code])
+}
+
+/// lime_recommendations
+model LimeRecommendation {
+  id             String   @id @default(uuid())
+  phFrom         Float
+  phTo           Float
+  fertilityClass String
+  product        String?
+  rateTHa        Float?
+  altRateTHa     Float?
+  frequency      String?
+  advice         String
+  source         String
+  sourceUrl      String?
+  createdAt      DateTime @default(now())
+}
+
+/// ai_recommendations -- comparison-engine output history
+model AiRecommendation {
+  id               String         @id @default(uuid())
+  farmId           String
+  farm             Farm           @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  cropId           String?
+  crop             Crop?          @relation(fields: [cropId], references: [id])
+  readingId        String?
+  reading          SoilReading?   @relation(fields: [readingId], references: [id])
+  soilReferenceId  String?
+  soilReference    SoilReference? @relation(fields: [soilReferenceId], references: [id])
+  suitabilityScore Int?
+  status           String
+  summary          String
+  details          Json
+  engineVersion    String
+  createdById      String?
+  createdBy        User?          @relation("AiRecommendationCreatedBy", fields: [createdById], references: [id])
+  createdAt        DateTime       @default(now())
+
+  @@index([farmId, createdAt])
+}

@@ -1,0 +1,65 @@
+# Render Blueprint for AgriLink AI (free plan).
+# Render dashboard -> New -> Blueprint -> pick this repository.
+#
+# Free-plan notes:
+#  - The API sleeps after ~15 min without traffic; the first request after that
+#    takes about a minute to wake it.
+#  - The free PostgreSQL database expires 30 days after creation unless you
+#    upgrade it. Back up before then.
+#  - Free services have no shell and no pre-deploy command, so the schema sync
+#    and first-boot seed run in the API's start command.
+databases:
+  - name: agrilink-db
+    plan: free
+    databaseName: agrilink
+    user: agrilink
+
+services:
+  - type: web
+    name: agrilink-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    # db push matches the schema the local database uses (text ids); it refuses
+    # destructive changes instead of dropping data.
+    startCommand: npx prisma db push --skip-generate && node scripts/bootstrap-db.js && node dist/main.js
+    healthCheckPath: /api/v1/geo/by-level/PROVINCE
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agrilink-db
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES
+        value: 30d
+      - key: SEED_ADMIN_PASSWORD
+        sync: false   # you are asked for this when creating the Blueprint
+      - key: FRONTEND_URL
+        sync: false   # e.g. https://agrilink-web.onrender.com (for email links / Google sign-in)
+      - key: BACKEND_URL
+        sync: false   # e.g. https://agrilink-api.onrender.com
+
+  - type: web
+    name: agrilink-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci --include=dev && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_HOST
+        fromService:
+          type: web
+          name: agrilink-api
+          property: host
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

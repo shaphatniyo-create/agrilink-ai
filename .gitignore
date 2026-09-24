@@ -1,0 +1,24 @@
+node_modules/
+dist/
+.env
+*.log
+logs/
+_agrilink_src.tgz
+*.tgz
+
+# Secrets / personal data - never commit
+backend/esp8266-agrilink-full.ino
+backend/esp8266-agrilink-http.ino
+backend/fix_pw.sql
+backend/seed-abraham.js
+backend/find-abraham.js
+backend/seed-user-data.js
+fix-db-password.bat
+# Local-only helper scripts from setup
+apply-soil-intel.bat
+install-soil-intel.bat
+finish-soil-intel.bat
+diag-db.bat
+patch_soil_intel.py
+
+git-commit.bat
