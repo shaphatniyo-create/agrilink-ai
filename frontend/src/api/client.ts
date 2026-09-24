@@ -1,11 +1,15 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
+// Render's Blueprint passes the API service's internal name (e.g. "agrilink-api-t5gl");
+// browsers need the public address, so add the onrender.com domain when it's missing.
+const apiHost = (h: string) => (h.includes('.') ? h : `${h}.onrender.com`);
+
 export const api = axios.create({
   // VITE_API_HOST is injected by the Render Blueprint (hostname of the API service).
   baseURL:
     import.meta.env.VITE_API_BASE_URL ||
-    (import.meta.env.VITE_API_HOST ? `https://${import.meta.env.VITE_API_HOST}/api/v1` : '/api/v1'),
+    (import.meta.env.VITE_API_HOST ? `https://${apiHost(import.meta.env.VITE_API_HOST)}/api/v1` : '/api/v1'),
 });
 
 api.interceptors.request.use((config) => {
