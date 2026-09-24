@@ -175,7 +175,8 @@ export class IotService {
     await this.farms.findOne(farmId, user);
     await this.flagOfflineDevices(farmId);
 
-    const devices = await this.prisma.iotDevice.findMany({ where: { farmId }, orderBy: { createdAt: 'asc' } });
+    // Deactivated devices are "removed" from the dashboard (kept in the database, can be re-activated).
+    const devices = await this.prisma.iotDevice.findMany({ where: { farmId, status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } });
     const now = Date.now();
     const readings = await Promise.all(
       devices.map((d) => this.prisma.soilReading.findFirst({ where: { deviceId: d.id }, orderBy: { recordedAt: 'desc' } })),
