@@ -24,3 +24,5 @@ patch_soil_intel.py
 git-commit.bat
 push-github.bat
 push-fix.bat
+push-fix2.bat
+backend/*.local-backup.ino
