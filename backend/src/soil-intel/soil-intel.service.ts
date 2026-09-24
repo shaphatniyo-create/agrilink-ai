@@ -191,25 +191,58 @@ export class SoilIntelService implements OnModuleInit {
   // ---------------------------------------------------------------------
   // Comparison engine
   // ---------------------------------------------------------------------
-  private scoreCrop(req: Requirement, v: Values) {
+  /**
+   * Per-crop suitability, 0-100. Each parameter scores 1 inside the crop's
+   * optimal range and falls off gradually the further the reading is outside
+   * it, so crops with different requirements get different scores even when
+   * the soil is outside every crop's ideal range. Also returns the factors
+   * that pull the score down, worst first.
+   */
+  private scoreCrop(req: Requirement, v: Values): { score: number | null; limits: string[] } {
     let earned = 0; let possible = 0;
-    const add = (weight: number, pts: number | null) => { if (pts == null) return; possible += weight; earned += weight * pts; };
+    const misses: { loss: number; text: string }[] = [];
+    const fmt = (x: number) => (Math.round(x * 10) / 10).toString();
+    const part = (
+      label: string, unit: string, weight: number, value: number | null, min: number | null, max: number | null,
+      tolLow: number, tolHigh: number, floor = 0,
+    ) => {
+      if (value == null || min == null || max == null) return;
+      let pts = 1;
+      if (value < min) pts = Math.max(floor, 1 - (min - value) / Math.max(tolLow, 1e-6));
+      else if (value > max) pts = Math.max(floor, 1 - (value - max) / Math.max(tolHigh, 1e-6));
+      possible += weight; earned += weight * pts;
+      if (pts < 1) {
+        misses.push({
+          loss: weight * (1 - pts),
+          text: `${label} ${fmt(value)}${unit} is ${value < min ? 'below' : 'above'} ${fmt(min)}-${fmt(max)}${unit}`,
+        });
+      }
+    };
+    // pH: hardest to change, so it weighs most. The tolerance on each side is
+    // the gap between the crop's optimal and absolute pH limits (crop-specific).
+    part('pH', '', 35, v.ph, req.phMin, req.phMax,
+      Math.max(0.3, req.phAbsMin != null ? req.phMin - req.phAbsMin : 1),
+      Math.max(0.3, req.phAbsMax != null ? req.phAbsMax - req.phMax : 1));
+    // Moisture: 25 percentage points outside the crop's band scores 0.
+    part('Moisture', '%', 20, v.moisturePct, req.moistureMinPct, req.moistureMaxPct, 25, 25);
+    // Nutrients: relative shortfall/excess; fixable with fertilizer, so never below 0.2.
+    part('Nitrogen', ' mg/kg', 15, v.nitrogenPpm, req.nitrogenMinPpm, req.nitrogenMaxPpm, req.nitrogenMinPpm ?? 1, req.nitrogenMaxPpm ?? 1, 0.2);
+    part('Phosphorus', ' mg/kg', 15, v.phosphorusPpm, req.phosphorusMinPpm, req.phosphorusMaxPpm, req.phosphorusMinPpm ?? 1, req.phosphorusMaxPpm ?? 1, 0.2);
+    part('Potassium', ' mg/kg', 15, v.potassiumPpm, req.potassiumMinPpm, req.potassiumMaxPpm, req.potassiumMinPpm ?? 1, req.potassiumMaxPpm ?? 1, 0.2);
+    const limits = misses.sort((a, b) => b.loss - a.loss).slice(0, 2).map((m) => m.text);
+    return { score: possible ? Math.round((earned / possible) * 100) : null, limits };
+  }
 
-    if (v.ph != null) {
-      if (v.ph >= req.phMin && v.ph <= req.phMax) add(35, 1);
-      else if ((req.phAbsMin == null || v.ph >= req.phAbsMin) && (req.phAbsMax == null || v.ph <= req.phAbsMax)) add(35, 0.5);
-      else add(35, 0);
+  /** Flags readings a working probe in soil cannot produce (probe in air, wiring fault, bad register map). */
+  private sensorWarning(v: Values): string | null {
+    const vals = [v.moisturePct, v.nitrogenPpm, v.phosphorusPpm, v.potassiumPpm].filter((x) => x != null) as number[];
+    if (v.phSource === 'SENSOR' && v.ph != null && (v.ph < 3 || v.ph > 10)) {
+      return `The sensor pH (${v.ph}) is outside what soil normally reads (about 3.5-9). Check the probe is fully in moist soil and its wiring, then re-check.`;
     }
-    const nb = band(v.nitrogenPpm, req.nitrogenMinPpm, req.nitrogenMaxPpm);
-    const pb = band(v.phosphorusPpm, req.phosphorusMinPpm, req.phosphorusMaxPpm);
-    const kb = band(v.potassiumPpm, req.potassiumMinPpm, req.potassiumMaxPpm);
-    const mb = band(v.moisturePct, req.moistureMinPct, req.moistureMaxPct);
-    // Nutrients that are low can be fixed with fertilizer, so they cost less than a pH mismatch.
-    add(15, nb === 'UNKNOWN' ? null : nb === 'OK' ? 1 : 0.4);
-    add(15, pb === 'UNKNOWN' ? null : pb === 'OK' ? 1 : 0.4);
-    add(15, kb === 'UNKNOWN' ? null : kb === 'OK' ? 1 : 0.4);
-    add(20, mb === 'UNKNOWN' ? null : mb === 'OK' ? 1 : 0.3);
-    return possible ? Math.round((earned / possible) * 100) : null;
+    if (vals.length && vals.every((x) => x === 0)) {
+      return 'The sensor is reporting 0 for moisture and all nutrients - it may be out of the soil or not wired correctly.';
+    }
+    return null;
   }
 
   private nitrogenLevel(n: number | null, req?: Requirement | null): 'LOW' | 'MEDIUM' | 'HIGH' | null {
@@ -307,18 +340,21 @@ export class SoilIntelService implements OnModuleInit {
 
     // Crop ranking
     const ranking = allReqs
-      .map((r) => ({ cropId: r.cropId, name: r.crop.name, localName: r.crop.localName, score: this.scoreCrop(r as Requirement, values), phRange: `${r.phMin}-${r.phMax}` }))
+      .map((r) => { const sc = this.scoreCrop(r as Requirement, values); return { cropId: r.cropId, name: r.crop.name, localName: r.crop.localName, score: sc.score, limits: sc.limits, phRange: `${r.phMin}-${r.phMax}` }; })
       .filter((r) => r.score != null)
-      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || a.limits.length - b.limits.length)
       .slice(0, 5);
 
-    const score = req ? this.scoreCrop(req, values) : null;
+    const cropScore = req ? this.scoreCrop(req, values) : null;
+    const score = cropScore?.score ?? null;
+    const sensorWarning = this.sensorWarning(values);
     const hasData = !!reading || !!reference;
     const status = !hasData ? 'NO_DATA'
       : score == null ? 'NO_CROP'
       : score >= 80 ? 'SUITABLE' : score >= 60 ? 'MODERATE' : 'POOR';
 
     const parts: string[] = [];
+    if (sensorWarning) parts.push(`Warning: ${sensorWarning}`);
     if (!hasData) parts.push('No sensor reading or reference soil data yet. Connect the sensor or add the farm\'s GPS location.');
     else {
       if (crop && score != null) parts.push(`${crop.name}: ${score}/100 suitability (${status.toLowerCase()}).`);
@@ -344,6 +380,8 @@ export class SoilIntelService implements OnModuleInit {
       lime,
       fertilizer,
       ranking,
+      sensorWarning,
+      cropLimits: cropScore?.limits ?? [],
       disclaimer: 'Decision support only. N/P/K and moisture bands are AgriLink defaults pending calibration with RAB soil-lab results; confirm fertilizer choices on Smart Nkunganire.',
     };
 

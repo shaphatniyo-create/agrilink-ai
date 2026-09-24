@@ -124,6 +124,10 @@ export default function SoilIntelligencePanel({ farms }: { farms: any[] }) {
             </div>
           </div>
 
+          {result.sensorWarning && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{result.sensorWarning}</div>
+          )}
+
           {/* Comparison table */}
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-sm">
@@ -197,12 +201,15 @@ export default function SoilIntelligencePanel({ farms }: { farms: any[] }) {
           {/* Best crops */}
           {result.ranking?.length > 0 && (
             <div>
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Best-suited crops for this soil</div>
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Best-suited crops for this soil (from your latest sensor reading)</div>
               <div className="flex flex-wrap gap-2">
                 {result.ranking.map((r: any) => (
                   <button key={r.cropId} onClick={() => setCropId(r.cropId)}
                     className={`rounded-lg border px-3 py-1.5 text-sm ${r.cropId === result.crop?.id ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
                     <span className="font-semibold">{r.name}</span> <span className="text-gray-500">{r.score}/100</span>
+                    <span className="block text-left text-[11px] text-gray-500">
+                      {r.limits?.length ? `Limited by: ${r.limits[0]}` : 'All sensor values within this crop\'s range'}
+                    </span>
                   </button>
                 ))}
               </div>
