@@ -22,3 +22,5 @@ diag-db.bat
 patch_soil_intel.py
 
 git-commit.bat
+push-github.bat
+push-fix.bat

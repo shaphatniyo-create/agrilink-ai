@@ -27,7 +27,22 @@ const FOUNDER_EMAIL = process.env.SEED_ADMIN_EMAIL || 'shaphatniyo@gmail.com';
       throw new Error('SEED_ADMIN_PASSWORD (min 10 characters) must be set before the first boot.');
     }
     console.log('[bootstrap] Empty database - loading prisma/seed.sql ...');
-    await db.query(readFileSync(join(__dirname, '..', 'prisma', 'seed.sql'), 'utf-8'));
+    // seed.sql hashes passwords with crypt()/gen_salt() from pgcrypto.
+    await db.query('CREATE EXTENSION IF NOT EXISTS pgcrypto');
+    // A schema created by `prisma db push` has no database defaults for
+    // @updatedAt columns (Prisma fills them in itself), but seed.sql relies on
+    // them. Add now() as a default; Prisma still sets the value on every write.
+    const upd = await db.query(`SELECT table_name FROM information_schema.columns
+      WHERE table_schema = current_schema() AND column_name = 'updatedAt' AND column_default IS NULL`);
+    for (const r of upd.rows) await db.query(`ALTER TABLE "${r.table_name}" ALTER COLUMN "updatedAt" SET DEFAULT now()`);
+    // The seed's helper table must use the same id type as the real tables
+    // (text after `prisma db push`, uuid after the SQL migrations).
+    const t = await db.query(`SELECT data_type FROM information_schema.columns
+      WHERE table_schema = current_schema() AND table_name = 'User' AND column_name = 'id'`);
+    const idType = t.rows[0]?.data_type === 'uuid' ? 'UUID' : 'TEXT';
+    let seed = readFileSync(join(__dirname, '..', 'prisma', 'seed.sql'), 'utf-8');
+    seed = seed.replace('CREATE TEMP TABLE ids (key TEXT PRIMARY KEY, id UUID);', `CREATE TEMP TABLE ids (key TEXT PRIMARY KEY, id ${idType});`);
+    await db.query(seed);
 
     const founderHash = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD, 10);
     const f = await db.query('UPDATE "User" SET "passwordHash" = $1 WHERE lower(email) = lower($2)', [founderHash, FOUNDER_EMAIL]);
