@@ -20,6 +20,15 @@ const FOUNDER_EMAIL = process.env.SEED_ADMIN_EMAIL || 'shaphatniyo@gmail.com';
   const db = new Client({ connectionString: process.env.DATABASE_URL.replace(/\?schema=.*$/, '') });
   await db.connect();
   try {
+    // One-off password reset for the founding Super Admin (the free plan has no
+    // shell). Set RESET_ADMIN_PASSWORD in Render, let it boot once, then remove it.
+    if (process.env.RESET_ADMIN_PASSWORD) {
+      if (process.env.RESET_ADMIN_PASSWORD.length < 10) throw new Error('RESET_ADMIN_PASSWORD must be at least 10 characters.');
+      const hash = await bcrypt.hash(process.env.RESET_ADMIN_PASSWORD, 10);
+      const r = await db.query('UPDATE "User" SET "passwordHash" = $1 WHERE lower(email) = lower($2)', [hash, FOUNDER_EMAIL]);
+      console.log(`[bootstrap] Founding Super Admin password reset (${r.rowCount} account). Remove RESET_ADMIN_PASSWORD now.`);
+    }
+
     const { rows } = await db.query('SELECT count(*)::int AS n FROM "User"');
     if (rows[0].n > 0) { console.log(`[bootstrap] ${rows[0].n} users exist - skipping seed.`); return; }
 
